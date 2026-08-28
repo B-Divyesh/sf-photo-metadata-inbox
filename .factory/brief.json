@@ -1,0 +1,14 @@
+{
+  "slug": "photo-metadata-inbox",
+  "title": "Photo Metadata Inbox",
+  "territory": "utilities",
+  "user": "Photographers with a large Lightroom-style library who need to progressively add captions and keywords without losing track of the untagged backlog.",
+  "smallest_useful_product": "Local web app that imports filenames, folders, and existing IPTC/XMP; presents a finite untagged queue by event; applies templates and controlled vocabulary; writes sidecars plus a change log. Non-goals: AI auto-captioning, DAM hosting, or replacing an editor.",
+  "success_measure": "At least 60% of pilot users clear 500 previously untagged assets in 30 days while exporting a portable XMP change log.",
+  "artifact_class": "pwa-offline",
+  "monetization": "one-time — private local catalog work has clear episodic value and should not charge per image.",
+  "constraints": "No image upload; never silently overwrite IPTC fields; configurable vocabulary; preserve original sidecars and write atomic backups.",
+  "why_distinct": "The product is a completion-oriented metadata work queue, not another general photo library or generative caption service.",
+  "confidence": 4,
+  "state": "RESEARCHED"
+}
