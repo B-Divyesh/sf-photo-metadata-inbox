@@ -4,7 +4,42 @@ import { createXmp, sidecarName } from './xmp';
 const encoder = new TextEncoder();
 
 function safePart(value: string): string {
-  return value.replace(/[\\:*?"<>|]/g, '-').replace(/^\.+/, '').trim() || 'Unsorted';
+  return [...value]
+    .map((character) => character.charCodeAt(0) < 32 ? '-' : character)
+    .join('')
+    .replace(/[\\:*?"<>|]/g, '-')
+    .replace(/^\.+/, '')
+    .replace(/[. ]+$/, '')
+    .trim() || 'Unsorted';
+}
+
+interface AssetOutputPath {
+  directories: string[];
+  filename: string;
+  relative: string;
+}
+
+function outputPath(asset: PhotoAsset): AssetOutputPath {
+  const pathParts = asset.relativePath.replaceAll('\\', '/').split('/').filter((part) => part && part !== '.' && part !== '..');
+  const sourceDirectories = pathParts.length > 1 ? pathParts.slice(0, -1) : [asset.event];
+  const directories = sourceDirectories.map(safePart);
+  const filename = safePart(sidecarName(asset.filename));
+  return { directories, filename, relative: [...directories, filename].join('/') };
+}
+
+function outputPaths(assets: PhotoAsset[]): Map<PhotoAsset, AssetOutputPath> {
+  const paths = new Map<PhotoAsset, AssetOutputPath>();
+  const owners = new Map<string, PhotoAsset>();
+  for (const asset of assets) {
+    const path = outputPath(asset);
+    const collision = owners.get(path.relative.toLocaleLowerCase());
+    if (collision) {
+      throw new Error(`Cannot export “${asset.relativePath}” and “${collision.relativePath}” because both resolve to “${path.relative}”. Rename one source path and import again.`);
+    }
+    owners.set(path.relative.toLocaleLowerCase(), asset);
+    paths.set(asset, path);
+  }
+  return paths;
 }
 
 function csvCell(value: string): string {
@@ -23,11 +58,12 @@ export function changesCsv(changes: ChangeEntry[]): string {
 
 export function buildBundle(assets: PhotoAsset[], changes: ChangeEntry[], settings: Settings): Uint8Array {
   const files: Record<string, Uint8Array> = {};
+  const paths = outputPaths(assets);
   assets.forEach((asset) => {
-    const folder = safePart(asset.event);
-    const sidecar = safePart(sidecarName(asset.filename));
-    files[`sidecars/${folder}/${sidecar}`] = encoder.encode(createXmp(asset.originalXmp, asset.caption, asset.keywords));
-    if (asset.originalXmp) files[`originals/${folder}/${sidecar}`] = encoder.encode(asset.originalXmp);
+    const path = paths.get(asset);
+    if (!path) throw new Error(`Could not plan an output path for “${asset.relativePath}”.`);
+    files[`sidecars/${path.relative}`] = encoder.encode(createXmp(asset.originalXmp, asset.caption, asset.keywords));
+    if (asset.originalXmp) files[`originals/${path.relative}`] = encoder.encode(asset.originalXmp);
   });
   const backup: CatalogBackup = { version: 1, exportedAt: new Date().toISOString(), assets, changes, settings };
   files['metadata-inbox-changelog.csv'] = encoder.encode(changesCsv(changes));
@@ -132,26 +168,34 @@ async function writeText(handle: WritableFileHandle, value: string): Promise<voi
   await writable.close();
 }
 
+async function nestedDirectory(root: WritableDirectoryHandle, names: string[]): Promise<WritableDirectoryHandle> {
+  let directory = root;
+  for (const name of names) directory = await directory.getDirectoryHandle(name, { create: true });
+  return directory;
+}
+
 export async function writeSidecarsWithBackups(assets: PhotoAsset[]): Promise<number> {
   if (!window.showDirectoryPicker) throw new Error('Direct folder writing needs a Chromium-based desktop browser. ZIP export works everywhere.');
+  const paths = outputPaths(assets);
   const root = await window.showDirectoryPicker({ mode: 'readwrite' });
   const timestamp = new Date().toISOString().replaceAll(':', '-');
   const backups = await root.getDirectoryHandle('.metadata-inbox-backups', { create: true });
   const backupRun = await backups.getDirectoryHandle(timestamp, { create: true });
   let written = 0;
   for (const asset of assets) {
-    const eventFolder = await root.getDirectoryHandle(safePart(asset.event), { create: true });
-    const filename = safePart(sidecarName(asset.filename));
+    const path = paths.get(asset);
+    if (!path) throw new Error(`Could not plan an output path for “${asset.relativePath}”.`);
+    const destination = await nestedDirectory(root, path.directories);
     try {
-      const existing = await eventFolder.getFileHandle(filename);
+      const existing = await destination.getFileHandle(path.filename);
       const original = await existing.getFile();
-      const backupEvent = await backupRun.getDirectoryHandle(safePart(asset.event), { create: true });
-      await writeText(await backupEvent.getFileHandle(filename, { create: true }), await original.text());
+      const backupDirectory = await nestedDirectory(backupRun, path.directories);
+      await writeText(await backupDirectory.getFileHandle(path.filename, { create: true }), await original.text());
     } catch (error) {
       if (error instanceof DOMException && error.name !== 'NotFoundError') throw error;
     }
     await writeText(
-      await eventFolder.getFileHandle(filename, { create: true }),
+      await destination.getFileHandle(path.filename, { create: true }),
       createXmp(asset.originalXmp, asset.caption, asset.keywords)
     );
     written += 1;

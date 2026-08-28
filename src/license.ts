@@ -1,5 +1,6 @@
 const SLUG = 'photo-metadata-inbox';
 const API = 'https://api.sociobot.in/api/v1';
+const VERIFY_API = '/api/license/verify';
 const TOKEN_KEY = `sb_license:${SLUG}`;
 const VERDICT_KEY = `sb_license_verdict:${SLUG}`;
 
@@ -45,8 +46,8 @@ export async function verifyLicense(force = false): Promise<boolean> {
     const cached = JSON.parse(localStorage.getItem(VERDICT_KEY) ?? '') as Verdict;
     if (!force && Date.now() - cached.checkedAt < 86_400_000) return cached.valid;
   } catch { /* verify below */ }
-  const response = await fetch(`${API}/products/${SLUG}/verify?license=${encodeURIComponent(token)}`);
-  if (!response.ok) throw new Error('License verification is temporarily unavailable.');
+  const response = await fetch(`${VERIFY_API}?license=${encodeURIComponent(token)}`, { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error(response.status === 429 ? 'Too many verification attempts. Try again shortly.' : 'License verification is temporarily unavailable.');
   const result = await response.json() as { valid: boolean };
   localStorage.setItem(VERDICT_KEY, JSON.stringify({ valid: result.valid, checkedAt: Date.now() } satisfies Verdict));
   return result.valid;

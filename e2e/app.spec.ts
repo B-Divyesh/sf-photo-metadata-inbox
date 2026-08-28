@@ -62,3 +62,28 @@ test('fits the 390px mobile workflow', async ({ page }) => {
   await expect(page.locator('#caption')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('supports the primary keyboard path without third-party catalog requests', async ({ page }) => {
+  const externalRequests: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.origin !== 'http://127.0.0.1:4173') externalRequests.push(url.origin);
+  });
+  await page.goto('/');
+  await page.keyboard.press('Tab');
+  await expect(page.locator('.skip-link')).toBeFocused();
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Try a 6-photo sample' }).click();
+
+  const firstTicket = page.locator('[data-queue-index="0"]');
+  const secondTicket = page.locator('[data-queue-index="1"]');
+  await firstTicket.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(secondTicket).toBeFocused();
+  await secondTicket.press('Enter');
+  await page.locator('#caption').fill('Keyboard-entered caption.');
+  await page.locator('#keywords').fill('keyboard, archive');
+  await page.keyboard.press('Control+Enter');
+  await expect(page.getByText('1 of 3 complete').first()).toBeVisible();
+  expect(externalRequests).toEqual([]);
+});

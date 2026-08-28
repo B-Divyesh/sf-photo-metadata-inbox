@@ -15,7 +15,8 @@ Live product: <https://photo-metadata-inbox.sociobot.in>
 - Edits captions and keywords with a configurable controlled vocabulary.
 - Preserves non-edited XMP fields and includes byte-for-byte originals in the
   export bundle.
-- Exports XMP sidecars, a CSV provenance log, and a restorable catalog JSON.
+- Exports XMP sidecars under their collision-safe relative folder paths, a CSV
+  provenance log, and a restorable catalog JSON.
 - Stores the queue in IndexedDB and works after an installed offline reload.
 - Offers a US$12 one-time full-line pass for templates, event-level bulk apply,
   and direct folder writing with timestamped backups. Manual editing, safety,
@@ -41,6 +42,8 @@ System Access API. ZIP export works in other evergreen browsers.
 
 ```sh
 npm test
+npm run typecheck
+npm run lint
 npm run build
 npm run test:e2e
 ```
@@ -69,7 +72,8 @@ unrelated namespaces/fields survive. ZIP bundles always retain original XMP in
 matching sidecar into `.metadata-inbox-backups/<timestamp>/` before replacing
 it. Keep a separate photo-library backup before any bulk metadata operation.
 
-License tokens are stored in localStorage and checked at most daily against
+License tokens are stored in localStorage and checked at most daily through a
+rate-limited same-origin verification function that forwards only the token to
 the Sociobot billing API. Checkout is hosted by Sociobot/Dodo; no payment
 provider is embedded here.
 

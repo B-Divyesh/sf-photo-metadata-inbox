@@ -22,6 +22,27 @@ describe('catalog workflow', () => {
     expect(restored.assets).toHaveLength(1);
   });
 
+  it('preserves nested relative paths when event and filename pairs repeat', () => {
+    const assets = assetsFromList([
+      'root-a/Wedding/IMG_0001.CR3',
+      'root-b/Wedding/IMG_0001.CR3',
+      'Event/IMG_0002.CR3\tCaption\tperson, place'
+    ].join('\n'));
+    const bundle = unzipSync(buildBundle(assets, assets.map(importChange), DEFAULT_SETTINGS));
+    const sidecars = Object.keys(bundle).filter((name) => name.startsWith('sidecars/')).sort();
+
+    expect(sidecars).toEqual([
+      'sidecars/Event/IMG_0002.xmp',
+      'sidecars/root-a/Wedding/IMG_0001.xmp',
+      'sidecars/root-b/Wedding/IMG_0001.xmp'
+    ]);
+  });
+
+  it('fails clearly if sanitizing source paths would still collide', () => {
+    const assets = assetsFromList(['root:a/IMG_0001.CR3', 'root?a/IMG_0001.CR3'].join('\n'));
+    expect(() => buildBundle(assets, [], DEFAULT_SETTINGS)).toThrow(/both resolve to/);
+  });
+
   it('escapes spreadsheet values in the change log', () => {
     const [asset] = assetsFromList('IMG.jpg\tA "quoted" caption\tportrait');
     if (!asset) throw new Error('fixture missing');

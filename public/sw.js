@@ -1,4 +1,4 @@
-const VERSION = 'photo-metadata-inbox-v3';
+const VERSION = 'photo-metadata-inbox-v4';
 const SHELL = [
   '/', '/index.html', '/offline.html', '/manifest.webmanifest',
   '/assets/app.js', '/assets/app.css', '/assets/archive-line.webp',
@@ -6,7 +6,14 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(SHELL)));
+  event.waitUntil((async () => {
+    const cache = await caches.open(VERSION);
+    await Promise.all(SHELL.map(async (path) => {
+      const response = await fetch(new Request(path, { cache: 'reload' }));
+      if (!response.ok) throw new Error(`Could not cache ${path}`);
+      await cache.put(path, response);
+    }));
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -25,6 +32,10 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== location.origin) return;
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(request));
+    return;
+  }
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
       const cached = await caches.match('/index.html', { ignoreSearch: true });
