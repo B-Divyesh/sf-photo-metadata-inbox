@@ -26,14 +26,17 @@ describe('license verification response policy', () => {
       headers: { 'Content-Type': 'application/json' }
     }));
     const handler = createVerifyHandler({ now: () => timestamp, fetchImpl: upstream });
-    const request = { headers: { 'x-forwarded-for': '198.51.100.4' }, query: { license: 'invalid-token' } };
+    const request = { headers: { 'x-client-ip': '198.51.100.4:4000' }, query: { license: 'invalid-token' } };
 
-    const burst = await Promise.all(Array.from({ length: 25 }, () => handler(request)));
-    expect(burst.filter((response) => response.status === 200)).toHaveLength(20);
-    expect(burst.filter((response) => response.status === 429)).toHaveLength(5);
-    expect(burst[20]?.headers['Retry-After']).toBe('60');
-    expect(JSON.parse(burst[20]?.body ?? '{}')).toEqual({ valid: false, reason: 'rate_limited' });
-    expect(upstream).toHaveBeenCalledTimes(20);
+    const burst = await Promise.all(Array.from({ length: 6 }, (_, index) => handler({
+      ...request,
+      headers: { 'x-client-ip': `198.51.100.4:${4000 + index}` }
+    })));
+    expect(burst.filter((response) => response.status === 200)).toHaveLength(3);
+    expect(burst.filter((response) => response.status === 429)).toHaveLength(3);
+    expect(burst[3]?.headers['Retry-After']).toBe('60');
+    expect(JSON.parse(burst[3]?.body ?? '{}')).toEqual({ valid: false, reason: 'rate_limited' });
+    expect(upstream).toHaveBeenCalledTimes(3);
 
     timestamp += 60_000;
     expect((await handler(request)).status).toBe(200);

@@ -1,7 +1,7 @@
 'use strict';
 
 const UPSTREAM = 'https://api.sociobot.in/api/v1/products/photo-metadata-inbox/verify';
-const DEFAULT_LIMIT = 20;
+const DEFAULT_LIMIT = 3;
 const DEFAULT_WINDOW_MS = 60_000;
 
 function requestHeader(request, name) {
@@ -12,7 +12,10 @@ function requestHeader(request, name) {
 function clientKey(request) {
   const forwarded = String(requestHeader(request, 'x-forwarded-for'));
   const addresses = forwarded.split(',').map((value) => value.trim()).filter(Boolean);
-  return String(requestHeader(request, 'x-client-ip') || addresses[0] || 'unknown');
+  const address = String(requestHeader(request, 'x-client-ip') || addresses[0] || 'unknown').trim();
+  const bracketedIpv6 = address.match(/^\[([^\]]+)](?::\d+)?$/);
+  if (bracketedIpv6) return bracketedIpv6[1];
+  return address.replace(/^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/, '$1');
 }
 
 function createVerifyHandler(options = {}) {
