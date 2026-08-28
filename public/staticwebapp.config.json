@@ -35,7 +35,11 @@
     { "route": "/robots.txt" },
     { "route": "/sitemap.xml" },
     { "route": "/offline.html" },
-    { "route": "/404.html" },
-    { "route": "/*", "rewrite": "/404.html", "statusCode": 404 }
-  ]
+    { "route": "/404.html" }
+  ],
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/404.html"
+    }
+  }
 }
