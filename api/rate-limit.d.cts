@@ -17,3 +17,4 @@ interface VerifyHandlerOptions {
 }
 
 export function createVerifyHandler(options?: VerifyHandlerOptions): (request: VerifyRequest) => Promise<VerifyResponse>;
+export function clientKey(request: VerifyRequest): string;

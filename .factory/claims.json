@@ -1,0 +1,79 @@
+[
+  {
+    "id": "demo-isolation",
+    "claim": "The sample uses a separate, resettable demo and never mixes with the real catalog.",
+    "where": "Demo banner, landing action, README",
+    "test": "npm run test:e2e -- --grep @claim:demo-isolation --project=chromium",
+    "sandbox": "Fresh browser context at /demo; edit, reset, inspect IndexedDB names, exit, and assert both catalogs are empty."
+  },
+  {
+    "id": "local-only",
+    "claim": "Photo files and metadata work stay on the device during the free workflow, with no analytics or tracking requests.",
+    "where": "Landing facts, import dialog, privacy notice, README",
+    "test": "npm run test:e2e -- --grep @claim:local-only --project=chromium",
+    "sandbox": "Fresh /demo flow; intercept every request, edit and complete an item, inspect demo IndexedDB, and require same-origin traffic with no image bytes stored."
+  },
+  {
+    "id": "offline-reload",
+    "claim": "Works offline after the first visit.",
+    "where": "Landing facts, README, paid dialog",
+    "test": "npm run test:e2e -- --grep @claim:offline-reload --project=mobile",
+    "sandbox": "Fresh 390px browser context at /demo; install the service worker, go offline, reload, edit, and complete a sample asset."
+  },
+  {
+    "id": "metadata-workflow",
+    "claim": "The queue groups photos by event and persists captions, keywords, and completion.",
+    "where": "Landing preview and how-it-works section, README",
+    "test": "npm run test:e2e -- --grep @claim:metadata-workflow --project=chromium",
+    "sandbox": "Fresh /demo catalog; edit the selected Lisbon asset, complete it, reload, and assert event progress remains."
+  },
+  {
+    "id": "portable-export",
+    "claim": "Exports collision-safe XMP sidecars, byte-for-byte originals, a CSV change log, and restorable catalog JSON.",
+    "where": "Landing how-it-works section, editor, README",
+    "test": "npm run test:e2e -- --grep @claim:portable-export --project=chromium",
+    "sandbox": "Fresh /demo catalog plus the verifier's duplicate event/name manifest; inspect the downloaded ZIP paths and file contents."
+  },
+  {
+    "id": "catalog-restore",
+    "claim": "An exported catalog JSON restores local work.",
+    "where": "Import dialog, settings, README",
+    "test": "npm run test:e2e -- --grep @claim:catalog-restore --project=chromium",
+    "sandbox": "Fresh /demo catalog; edit a caption, export JSON, reset, restore that file, and assert the edit returns."
+  },
+  {
+    "id": "free-exports",
+    "claim": "Manual editing and every export remain free.",
+    "where": "Landing facts, paid section, settings, terms, README",
+    "test": "npm run test:e2e -- --grep @claim:free-exports --project=chromium",
+    "sandbox": "Fresh unlicensed /demo context; assert ZIP and catalog JSON export controls work and a JSON download completes."
+  },
+  {
+    "id": "paid-safety",
+    "claim": "The US$12 one-time pass adds templates and direct sidecar writing with timestamped backups.",
+    "where": "Landing paid section, license dialog, terms, README",
+    "test": "npm run test:e2e -- --grep @claim:paid-safety --project=chromium",
+    "sandbox": "Fresh /demo context with a stubbed valid license and File System Access directory; assert templates appear and an existing sidecar is written to a timestamped backup path before output."
+  },
+  {
+    "id": "daily-license",
+    "claim": "Stored licenses are verified at most once per day through the same-origin endpoint, which forwards only the token.",
+    "where": "Privacy notice, README",
+    "test": "npm test -- --testNamePattern @claim:daily-license",
+    "sandbox": "Fresh localStorage with a test token and mocked same-origin verifier; call verification twice and assert one request."
+  },
+  {
+    "id": "rate-limited-license",
+    "claim": "The same-origin license endpoint limits each trusted client to three requests per minute.",
+    "where": "Privacy notice, README",
+    "test": "npm test -- --testNamePattern @claim:rate-limited-license",
+    "sandbox": "Six concurrent requests rotate the untrusted X-Client-IP header while keeping one platform-appended address; assert three 200s, three 429s, Retry-After, and only three upstream calls."
+  },
+  {
+    "id": "jpeg-read-limit",
+    "claim": "JPEG import reads at most the first 2 MB to find embedded IPTC.",
+    "where": "Import dialog, privacy notice, README",
+    "test": "npm test -- --testNamePattern @claim:jpeg-read-limit",
+    "sandbox": "A fake selected JPEG records its slice bounds; assert the parser requests bytes 0 through 2 × 1024 × 1024 only."
+  }
+]

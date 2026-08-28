@@ -59,6 +59,11 @@ toast rises from the bottom edge, and completed queue markers fill. UI motion
 is 180–240 ms and only transforms/opacity. Under `prefers-reduced-motion`, all
 translation and smooth scrolling are removed; state changes remain immediate.
 
+Demo mode uses the brass ticket color as a persistent strip above the masthead;
+it reads as a temporary platform pass without changing the catalog workspace.
+The 404 uses the same route language and circular stop mark, so failure feels
+specific to this product rather than like a hosting default.
+
 ## Original asset plan and provenance
 
 The hero/empty-state artwork is a generated art-deco darkroom transit scene:
@@ -83,6 +88,7 @@ Prompt sheet:
 - License/provenance: original generated artwork commissioned for this product;
   source PNG and prompt JSON are retained in `assets/src/`.
 - Delivery: responsive WebP, explicit dimensions, ≤300 KB.
+- Social preview: `social-card-7d83b68a.jpg`, a 1200×630 crop derived from the
+  same generated source artwork.
 - Icons and the route mark are hand-authored inline SVG/CSS geometric forms,
   original to this product.
-

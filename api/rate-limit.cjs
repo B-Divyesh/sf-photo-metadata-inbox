@@ -12,7 +12,10 @@ function requestHeader(request, name) {
 function clientKey(request) {
   const forwarded = String(requestHeader(request, 'x-forwarded-for'));
   const addresses = forwarded.split(',').map((value) => value.trim()).filter(Boolean);
-  const address = String(requestHeader(request, 'x-client-ip') || addresses[0] || 'unknown').trim();
+  // The platform appends its observed peer to X-Forwarded-For. The last value
+  // is therefore the only address callers cannot rotate with request headers.
+  // Never use X-Client-IP: Azure Static Web Apps passes caller values through.
+  const address = String(addresses.at(-1) || 'unknown').trim();
   const bracketedIpv6 = address.match(/^\[([^\]]+)](?::\d+)?$/);
   if (bracketedIpv6) return bracketedIpv6[1];
   return address.replace(/^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/, '$1');
@@ -84,4 +87,4 @@ function createVerifyHandler(options = {}) {
   };
 }
 
-module.exports = { createVerifyHandler };
+module.exports = { clientKey, createVerifyHandler };

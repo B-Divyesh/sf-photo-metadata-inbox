@@ -3,7 +3,7 @@
   "name": "Photo Metadata Inbox",
   "short_name": "Metadata Inbox",
   "description": "A private, offline work queue for captions, keywords, and portable XMP sidecars.",
-  "start_url": "/?source=installed&v=1",
+  "start_url": "/?source=installed&v=2",
   "scope": "/",
   "display": "standalone",
   "background_color": "#101925",

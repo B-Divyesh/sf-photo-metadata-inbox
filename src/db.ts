@@ -1,6 +1,7 @@
 import { DEFAULT_SETTINGS, type ChangeEntry, type PhotoAsset, type Settings } from './types';
 
-const DB_NAME = 'photo-metadata-inbox';
+const REAL_DB_NAME = 'photo-metadata-inbox';
+const DEMO_DB_NAME = 'demo:photo-metadata-inbox';
 const DB_VERSION = 1;
 
 let connection: Promise<IDBDatabase> | undefined;
@@ -8,7 +9,7 @@ let connection: Promise<IDBDatabase> | undefined;
 function openDb(): Promise<IDBDatabase> {
   if (connection) return connection;
   connection = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(databaseNameForPath(location.pathname), DB_VERSION);
     request.onerror = () => reject(request.error ?? new Error('Could not open the local catalog.'));
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -57,6 +58,15 @@ export async function clearCatalog(): Promise<void> {
   await transactionDone(tx);
 }
 
+export async function resetCatalog(): Promise<void> {
+  const db = await openDb();
+  const tx = db.transaction(['assets', 'changes', 'settings'], 'readwrite');
+  tx.objectStore('assets').clear();
+  tx.objectStore('changes').clear();
+  tx.objectStore('settings').clear();
+  await transactionDone(tx);
+}
+
 export async function getChanges(): Promise<ChangeEntry[]> {
   const db = await openDb();
   return requestResult(db.transaction('changes').objectStore('changes').getAll());
@@ -93,5 +103,10 @@ function transactionDone(tx: IDBTransaction): Promise<void> {
 }
 
 export function resetDbConnectionForTests(): void {
+  void connection?.then((db) => db.close());
   connection = undefined;
+}
+
+export function databaseNameForPath(pathname: string): string {
+  return pathname.replace(/\/+$/, '') === '/demo' ? DEMO_DB_NAME : REAL_DB_NAME;
 }

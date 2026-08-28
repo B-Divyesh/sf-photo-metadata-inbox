@@ -7,6 +7,10 @@ change, and exports portable sidecars instead of trying to become another DAM.
 
 Live product: <https://photo-metadata-inbox.sociobot.in>
 
+One-click demo: <https://photo-metadata-inbox.sociobot.in/demo>. The six-photo
+sample uses a separate `demo:photo-metadata-inbox` IndexedDB database. Reset
+returns the sample to its starting state; starting for real clears demo data.
+
 ## What v1 does
 
 - Imports photo filenames from a local folder, with matching `.xmp` sidecars,
@@ -19,8 +23,8 @@ Live product: <https://photo-metadata-inbox.sociobot.in>
   provenance log, and a restorable catalog JSON.
 - Stores the queue in IndexedDB and works after an installed offline reload.
 - Offers a US$12 one-time full-line pass for templates, event-level bulk apply,
-  and direct folder writing with timestamped backups. Manual editing, safety,
-  accessibility, and every export remain free.
+  and direct folder writing with timestamped backups. Manual editing and every
+  export remain free.
 
 Image bytes are never stored or uploaded. Folder processing reads filenames,
 sidecar text, and at most the first 2 MB of JPEGs to find embedded IPTC.
@@ -53,6 +57,12 @@ The exact production build command is `npm run build`. Static output lands in
 Playwright 1.58.2 Chromium installation and cover persistence, 390 px layout,
 axe accessibility checks, and offline reload.
 
+Run each visitor-facing promise from `.factory/claims.json`, or run them all:
+
+```sh
+npm run test:claims
+```
+
 ## Import manifest format
 
 Use one path per line. Caption and keywords are optional tab-separated fields;
@@ -80,15 +90,18 @@ provider is embedded here.
 ## Product documents
 
 - [Visual thesis](.factory/design.md)
+- [Demo sandbox](.factory/demo.md)
+- [Claim registry](.factory/claims.json)
+- [Copy audit](.factory/copy-audit.md)
 - [Privacy notice](privacy/index.html)
 - [Terms](terms/index.html)
 - [Build handoff](.factory/handoff.md)
 
 ## Deployment
 
-Deploy the contents of `dist/` as a static site with history/folder fallback
-enabled. Do not deploy repository source or configure billing/DNS from this
-repository; the factory handles those concerns.
+Deploy `dist/` and the managed `api/` functions with the work order's static
+deployment helper. `staticwebapp.config.json` handles `/demo`, legal pages, a
+real 404 response, security headers, and immutable built assets.
 
 ## License
 

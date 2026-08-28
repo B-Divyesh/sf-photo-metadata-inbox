@@ -1,5 +1,5 @@
 import './styles.css';
-import { addChanges, clearCatalog, getAssets, getChanges, getSettings, putAssets, putSettings } from './db';
+import { addChanges, clearCatalog, getAssets, getChanges, getSettings, putAssets, putSettings, resetCatalog } from './db';
 import { assetsFromFiles, assetsFromList, importChange } from './importer';
 import { buildBundle, downloadBlob, parseCatalog, writeSidecarsWithBackups } from './exporter';
 import { captureLicenseFromUrl, checkoutUrl, hasOptimisticLicense, removeLicense, saveLicense, verifyLicense } from './license';
@@ -17,6 +17,12 @@ interface AppState {
   error: string;
 }
 
+declare const __BUILD_ID__: string;
+
+const routePath = location.pathname.replace(/\/+$/, '') || '/';
+const demoMode = routePath === '/demo';
+const knownRoute = routePath === '/' || demoMode;
+
 const appNode = document.querySelector<HTMLDivElement>('#app');
 if (!appNode) throw new Error('App root is missing.');
 const app: HTMLDivElement = appNode;
@@ -27,14 +33,23 @@ const state: AppState = {
 };
 
 let saveTimer = 0;
+let leavingDemo = false;
 
 void boot();
 
 async function boot(): Promise<void> {
-  captureLicenseFromUrl();
-  state.licensed = hasOptimisticLicense();
+  configurePageMetadata();
+  if (!knownRoute) {
+    state.loading = false;
+    render();
+    bindGlobalEvents();
+    return;
+  }
+  if (!demoMode) captureLicenseFromUrl();
+  state.licensed = demoMode ? true : hasOptimisticLicense();
   try {
     [state.assets, state.changes, state.settings] = await Promise.all([getAssets(), getChanges(), getSettings()]);
+    if (demoMode && !state.assets.length) await seedDemoCatalog();
     chooseVisibleAsset();
   } catch (error) {
     state.error = error instanceof Error ? error.message : 'The local catalog could not be opened.';
@@ -43,7 +58,7 @@ async function boot(): Promise<void> {
     render();
   }
   bindGlobalEvents();
-  void refreshLicense();
+  if (!demoMode) void refreshLicense();
   registerServiceWorker();
 }
 
@@ -65,25 +80,15 @@ function bindGlobalEvents(): void {
 
 function render(): void {
   if (state.loading) return;
+  if (!knownRoute) {
+    app.innerHTML = `${siteHeader()}${notFoundView()}${siteFooter()}<div id="toast" class="toast" role="status" aria-live="polite"></div>`;
+    return;
+  }
   app.innerHTML = `
-    <header class="masthead">
-      <a class="brand" href="/" aria-label="Photo Metadata Inbox home">
-        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span><small>Local catalog line</small><h1>Photo Metadata Inbox</h1></span>
-      </a>
-      <nav aria-label="Catalog actions">
-        <span id="network-status" class="network ${state.online ? '' : 'offline'}"><span aria-hidden="true"></span>${state.online ? 'On device' : 'Offline · on device'}</span>
-        <button class="button ghost" data-action="open-import">Import</button>
-        ${state.assets.length ? '<button class="button brass" data-action="export">Export XMP</button>' : ''}
-        <button class="icon-button" data-action="open-settings" aria-label="Open settings and license"><span aria-hidden="true">◆</span></button>
-      </nav>
-    </header>
+    ${demoMode ? demoBanner() : ''}
+    ${siteHeader()}
     ${state.error ? errorView() : state.assets.length ? catalogView() : emptyView()}
-    <footer>
-      <span>Private by design · nothing is uploaded</span>
-      <span><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><button class="link-button" data-action="open-license">${state.licensed ? 'Line pass active' : 'Get the full line'}</button></span>
-      <span class="generated-note">Poster artwork generated for this product.</span>
-    </footer>
+    ${siteFooter()}
     ${importDialog()}
     ${settingsDialog()}
     ${licenseDialog()}
@@ -91,32 +96,76 @@ function render(): void {
   `;
 }
 
+function siteHeader(): string {
+  return `<header class="masthead">
+    <a class="brand" href="/" ${demoMode ? 'data-action="start-real"' : ''} aria-label="Photo Metadata Inbox home">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span><small>Local catalog line</small><span class="brand-name">Photo Metadata Inbox</span></span>
+    </a>
+    ${knownRoute ? `<nav aria-label="Catalog actions">
+      <span id="network-status" class="network ${state.online ? '' : 'offline'}"><span aria-hidden="true"></span>${state.online ? 'On device' : 'Offline · on device'}</span>
+      <button class="button ghost" data-action="open-import">Import</button>
+      ${state.assets.length ? '<button class="button brass" data-action="export">Export XMP</button>' : ''}
+      <button class="icon-button" data-action="open-settings" aria-label="Open settings and license"><span aria-hidden="true">◆</span></button>
+    </nav>` : '<nav aria-label="Site"><a href="/">Return home</a></nav>'}
+  </header>`;
+}
+
+function demoBanner(): string {
+  return `<aside class="demo-banner" aria-label="Demo mode">
+    <strong>Demo — sample data, nothing is saved to your catalog</strong>
+    <span><button class="link-button" data-action="reset-demo">Reset demo</button><button class="link-button" data-action="start-real">Start for real</button></span>
+  </aside>`;
+}
+
+function siteFooter(): string {
+  return `<footer>
+    <span>Finish photo metadata in a private, finite queue.</span>
+    <span><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a>${knownRoute && !demoMode ? `<button class="link-button" data-action="open-license">${state.licensed ? 'Line pass active' : 'Get the full line'}</button>` : ''}</span>
+    <span class="build-note">Built by Param Factory · build ${escapeHtml(__BUILD_ID__)}</span>
+    <span class="generated-note">Poster artwork generated for this product.</span>
+  </footer>`;
+}
+
 function emptyView(): string {
-  return `<main id="main" class="welcome">
-    <section class="welcome-copy">
-      <p class="eyebrow">A finite route through the backlog</p>
-      <h2>Every photograph deserves a destination.</h2>
-      <p class="lede">Bring in filenames and XMP sidecars. Work event by event, keep every original, and leave with portable metadata—not another photo library.</p>
-      <div class="welcome-actions">
-        <button class="button brass large" data-action="open-import">Open a local folder</button>
-        <button class="button ghost large" data-action="load-sample">Try a 6-photo sample</button>
+  return `<main id="main" class="landing">
+    <section class="welcome">
+      <div class="welcome-copy">
+        <p class="eyebrow">A finite route through the backlog</p>
+        <h1>Finish captions and keywords in your photo backlog</h1>
+        <p class="lede">For photographers with large Lightroom-style libraries who need a finite queue for unfinished metadata.</p>
+        <div class="welcome-actions">
+          <a class="button brass large" href="/demo">Try it with sample data</a>
+          <span>Loads six sample photos in a separate demo.</span>
+          <button class="button ghost large" data-action="open-import">Import your own folder</button>
+        </div>
+        <ul class="promise-list" aria-label="Product facts">
+          <li><strong>01</strong><span>Your photo files stay on this device</span></li>
+          <li><strong>02</strong><span>Works offline after your first visit</span></li>
+          <li><strong>03</strong><span>Manual editing and every export are free</span></li>
+        </ul>
       </div>
-      <ul class="promise-list" aria-label="Product guarantees">
-        <li><strong>01</strong><span>No images uploaded</span></li>
-        <li><strong>02</strong><span>Original XMP preserved</span></li>
-        <li><strong>03</strong><span>Works without a connection</span></li>
-      </ul>
+      <figure class="hero-frame">
+        <picture><source srcset="/assets/archive-line-d52ac22b.webp" type="image/webp" />
+        <img src="/assets/archive-line-6fd7f02a.png" width="1536" height="1024" fetchpriority="high" alt="Art-deco film rails carry archive cards toward an orderly catalog." /></picture>
+        <figcaption><span>Terminus</span> A cleared metadata archive</figcaption>
+      </figure>
     </section>
-    <figure class="hero-frame">
-      <picture><source srcset="/assets/archive-line.webp" type="image/webp" />
-      <img src="/assets/archive-line.png" width="1536" height="1024" fetchpriority="high" alt="Art-deco illustration of film-strip rails carrying archive cards toward an illuminated catalog." /></picture>
-      <figcaption><span>Terminus</span> A cleared metadata archive</figcaption>
-    </figure>
+    <section class="landing-section live-preview" aria-labelledby="preview-title">
+      <div><p class="eyebrow">The working view</p><h2 id="preview-title">See one clear next photo</h2><p>The queue groups files by event and shows what remains. Captions, keywords, and completion stay together.</p></div>
+      <div class="preview-board" aria-label="Example metadata queue"><span>Lisbon — 1 of 3 complete</span><strong>DSC_1043.NEF</strong><p>Caption: Tram tracks after the rain.</p><p>Keywords: Lisbon, street, evening</p></div>
+    </section>
+    <section class="landing-section" aria-labelledby="how-title"><p class="eyebrow">How it works</p><h2 id="how-title">Move each event to done</h2><ol class="steps"><li><strong>Import</strong><span>Choose photo names, folders, and matching XMP sidecars.</span></li><li><strong>Describe</strong><span>Add a caption and controlled keywords to each photo.</span></li><li><strong>Export</strong><span>Download sidecars, original XMP, a CSV log, and catalog JSON.</span></li></ol></section>
+    <section class="landing-section limits" aria-labelledby="limits-title"><div><p class="eyebrow">Clear boundaries</p><h2 id="limits-title">Your catalog stays yours</h2><p>The app does not upload images, host a photo library, or generate captions. It edits metadata you choose in this browser.</p><a href="/privacy/">Read the privacy notice</a></div><div><p class="eyebrow">Full-line pass</p><h2>US$12 once</h2><p>Add reusable templates, event bulk apply, and direct sidecar writing with timestamped backups. Manual editing and exports stay free.</p><button class="button brass" data-action="open-license">See the paid features</button></div></section>
   </main>`;
 }
 
 function errorView(): string {
-  return `<main id="main" class="state-page"><div class="state-emblem danger" aria-hidden="true">!</div><p class="eyebrow">Catalog delayed</p><h2>Your local catalog did not open.</h2><p>${escapeHtml(state.error)}</p><button class="button brass" data-action="retry">Try again</button></main>`;
+  return `<main id="main" class="state-page"><div class="state-emblem danger" aria-hidden="true">!</div><p class="eyebrow">Catalog delayed</p><h1>Your local catalog did not open</h1><p>${escapeHtml(state.error)}</p><button class="button brass" data-action="retry">Try again</button></main>`;
+}
+
+function notFoundView(): string {
+  return `<main id="main" class="state-page not-found"><div class="state-emblem" aria-hidden="true">?</div><p class="eyebrow">Wrong platform</p><h1>This route is not on the line</h1><p>The address does not match a page in Photo Metadata Inbox.</p><a class="button brass" href="/">Return to the inbox</a></main>`;
 }
 
 function catalogView(): string {
@@ -128,8 +177,8 @@ function catalogView(): string {
   return `<main id="main" class="station">
     <aside class="route-panel" aria-label="Events">
       <div class="route-heading"><p class="eyebrow">Events</p><span>${events.length - 1} platforms</span></div>
-      <div class="event-list" role="list">
-        ${events.map((event, index) => `<button role="listitem" class="event-stop ${state.settings.activeEvent === event.name ? 'active' : ''}" data-event="${attr(event.name)}">
+      <div class="event-list" aria-label="Event filters">
+        ${events.map((event, index) => `<button class="event-stop ${state.settings.activeEvent === event.name ? 'active' : ''}" data-event="${attr(event.name)}">
           <span class="stop-marker" aria-hidden="true">${String(index).padStart(2, '0')}</span><span><strong>${escapeHtml(event.name)}</strong><small>${event.done} of ${event.total} complete</small></span>
         </button>`).join('')}
       </div>
@@ -137,7 +186,7 @@ function catalogView(): string {
     </aside>
     <section class="workbench" aria-labelledby="workbench-title">
       <header class="workbench-top">
-        <div><p class="eyebrow">Now at the desk</p><h2 id="workbench-title">${selected ? escapeHtml(selected.filename) : 'Platform cleared'}</h2>${selected ? `<p class="path">${escapeHtml(selected.relativePath)}</p>` : ''}</div>
+        <div><p class="eyebrow">Now at the desk</p><h1 id="workbench-title">${selected ? escapeHtml(selected.filename) : 'Platform cleared'}</h1>${selected ? `<p class="path">${escapeHtml(selected.relativePath)}</p>` : ''}</div>
         <div class="counter" aria-label="${visible.length} assets in this view"><strong>${visible.length}</strong><span>on route</span></div>
       </header>
       ${selected ? editorView(selected) : clearedView()}
@@ -173,7 +222,7 @@ function editorView(asset: PhotoAsset): string {
 
 function clearedView(): string {
   const allDone = state.assets.every((asset) => asset.status === 'done');
-  return `<div class="cleared"><div class="state-emblem" aria-hidden="true">✓</div><p class="eyebrow">${allDone ? 'Terminus reached' : 'No stops here'}</p><h3>${allDone ? 'The whole catalog is clear.' : 'This event has no open items.'}</h3><p>${allDone ? 'Export your XMP bundle and change log, or reopen any asset.' : 'Show completed assets or choose another event.'}</p><div><button class="button brass dark" data-action="export">Export XMP bundle</button><button class="button ghost paper" data-action="show-completed">Show completed</button></div></div>`;
+  return `<div class="cleared"><div class="state-emblem" aria-hidden="true">✓</div><p class="eyebrow">${allDone ? 'Terminus reached' : 'No stops here'}</p><h2>${allDone ? 'The whole catalog is clear.' : 'This event has no open items.'}</h2><p>${allDone ? 'Export your XMP bundle and change log, or reopen any asset.' : 'Show completed assets or choose another event.'}</p><div><button class="button brass dark" data-action="export">Export XMP bundle</button><button class="button ghost paper" data-action="show-completed">Show completed</button></div></div>`;
 }
 
 function queueView(assets: PhotoAsset[]): string {
@@ -212,7 +261,7 @@ function settingsDialog(): string {
   return `<dialog id="settings-dialog" class="modal"><div class="modal-shell settings-shell">
     <div class="modal-top"><div><p class="eyebrow">Station office</p><h2>Catalog controls</h2></div><button class="icon-button light" data-close="settings-dialog" aria-label="Close settings">×</button></div>
     <section><h3>Own your data</h3><p>Export is always available, including on the free line.</p><div class="action-grid"><button class="button brass" data-action="export">Download XMP bundle</button><button class="button ghost" data-action="download-json">Catalog JSON only</button></div></section>
-    <section><h3>Direct folder writing <span class="pass-label">Full line</span></h3><p>Choose a destination. Existing sidecars are copied to a timestamped <code>.metadata-inbox-backups</code> folder before writing.</p><button class="button ${state.licensed ? 'ghost' : 'disabled'}" data-action="direct-write">${state.licensed ? 'Choose destination folder' : 'Unlock direct writing'}</button></section>
+    <section><h3>Direct folder writing <span class="pass-label">Full line</span></h3><p>Choose a destination. Existing sidecars are copied to a timestamped <code>.metadata-inbox-backups</code> folder before writing.</p><button class="button ${state.licensed ? 'ghost' : 'disabled'}" data-action="direct-write">${state.licensed ? 'Choose destination folder' : 'Get the pass for direct writing'}</button></section>
     <section class="danger-zone"><h3>Clear this device</h3><p>Removes the local queue and history. Export first if you may need them.</p><button class="button coral" data-action="clear-catalog">Clear local catalog</button></section>
   </div></dialog>`;
 }
@@ -221,7 +270,7 @@ function licenseDialog(): string {
   return `<dialog id="license-dialog" class="modal"><div class="modal-shell license-shell">
     <div class="modal-top"><div><p class="eyebrow">Full-line pass</p><h2>${state.licensed ? 'Your pass is active' : 'Clear large catalogs faster'}</h2></div><button class="icon-button light" data-close="license-dialog" aria-label="Close license">×</button></div>
     <p class="price"><strong>US$12</strong><span>one-time purchase</span></p>
-    <ul class="feature-list"><li>Reusable caption and keyword templates</li><li>Bulk template application by event</li><li>Direct sidecar writing with timestamped backups</li><li>All future v1 updates</li></ul>
+    <ul class="feature-list"><li>Reusable caption and keyword templates</li><li>Bulk template application by event</li><li>Direct sidecar writing with timestamped backups</li></ul>
     <p>The free line keeps manual editing, vocabulary, offline use, XMP export, and catalog backup. Sociobot/Dodo is the merchant of record; refunds are handled there.</p>
     ${state.licensed ? '<button class="button coral" data-action="remove-license">Remove pass from this device</button>' : `<a class="button brass buy" href="${checkoutUrl}">Buy the full-line pass</a>`}
     <form id="license-form" class="license-restore"><label for="license-token">Have a license? Paste its token</label><div><input id="license-token" autocomplete="off" spellcheck="false"/><button class="button ghost" type="submit">Verify pass</button></div><p id="license-error" class="form-error" role="alert"></p></form>
@@ -233,6 +282,7 @@ async function handleClick(event: MouseEvent): Promise<void> {
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action],[data-event],[data-select],[data-add-keyword],[data-remove-keyword],[data-template],[data-close]');
   if (!target) return;
   const action = target.dataset.action;
+  if (action === 'reset-demo' || action === 'start-real') event.preventDefault();
   if (target.dataset.close) closeDialog(target.dataset.close);
   if (target.dataset.event) { saveDraft(); state.settings.activeEvent = target.dataset.event; chooseVisibleAsset(); await saveSettingsAndRender(); }
   if (target.dataset.select) { saveDraft(); state.selectedId = target.dataset.select; render(); focusCaption(); }
@@ -244,7 +294,8 @@ async function handleClick(event: MouseEvent): Promise<void> {
     case 'open-settings': openDialog('settings-dialog'); break;
     case 'open-license': openDialog('license-dialog'); break;
     case 'run-import': await runImport(); break;
-    case 'load-sample': await loadSample(); break;
+    case 'reset-demo': await resetDemo(); break;
+    case 'start-real': await startForReal(); break;
     case 'complete': await markCurrentDone(); break;
     case 'reopen': await reopenCurrent(); break;
     case 'next': navigateAsset(1); break;
@@ -327,16 +378,48 @@ async function runImport(): Promise<void> {
   }
 }
 
-async function loadSample(): Promise<void> {
-  const sample = ['Lisbon-2026/DSC_1042.NEF', 'Lisbon-2026/DSC_1043.NEF', 'Lisbon-2026/DSC_1051.NEF', 'Studio-portraits/IMG_8821.CR3', 'Studio-portraits/IMG_8826.CR3', 'Studio-portraits/IMG_8834.CR3'].join('\n');
+async function seedDemoCatalog(): Promise<void> {
+  const sample = [
+    'Lisbon-2026/DSC_1042.NEF\tYellow tram climbing through Alfama at blue hour.\tLisbon, tram, blue hour',
+    'Lisbon-2026/DSC_1043.NEF\tTram tracks after the rain.\t',
+    'Lisbon-2026/DSC_1051.NEF',
+    'Studio-portraits/IMG_8821.CR3\tMara by the north window during the autumn session.\tportrait, studio, window light',
+    'Studio-portraits/IMG_8826.CR3\t\tportrait, studio',
+    'Studio-portraits/IMG_8834.CR3'
+  ].join('\n');
   const assets = assetsFromList(sample);
+  assets.slice(1).forEach((asset) => {
+    asset.originalCaption = '';
+    asset.originalKeywords = [];
+  });
+  const first = assets[0];
+  if (first) first.originalXmp = '<?xpacket begin="﻿"?><x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmp:Rating="4" /></rdf:RDF></x:xmpmeta><?xpacket end="w"?>';
   const changes = assets.map(importChange);
   await Promise.all([putAssets(assets), addChanges(changes)]);
-  state.assets = assets; state.changes = changes; state.settings.activeEvent = 'Lisbon-2026'; state.selectedId = assets[0]?.id ?? '';
-  render(); toast('Sample route ready. It is stored only in this browser.');
+  state.assets = assets;
+  state.changes = changes;
+  state.settings = { ...DEFAULT_SETTINGS, vocabulary: [...DEFAULT_SETTINGS.vocabulary], templates: [] };
+  state.settings.activeEvent = 'Lisbon-2026';
+  state.selectedId = assets.find((asset) => asset.status === 'inbox')?.id ?? assets[0]?.id ?? '';
+  await putSettings(state.settings);
+}
+
+async function resetDemo(): Promise<void> {
+  if (!demoMode) return;
+  await resetCatalog();
+  await seedDemoCatalog();
+  render();
+  toast('Demo reset to its six sample photos.');
+}
+
+async function startForReal(): Promise<void> {
+  leavingDemo = true;
+  if (demoMode) await resetCatalog();
+  location.assign('/');
 }
 
 function saveDraft(): void {
+  if (leavingDemo) return;
   const asset = currentAsset();
   const captionInput = document.querySelector<HTMLTextAreaElement>('#caption');
   const keywordInput = document.querySelector<HTMLInputElement>('#keywords');
@@ -486,6 +569,26 @@ function registerServiceWorker(): void {
   }).catch(() => { /* The app remains usable without installation support. */ });
 }
 
+function configurePageMetadata(): void {
+  const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  const ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]');
+  const ogUrl = document.querySelector<HTMLMetaElement>('meta[property="og:url"]');
+  const twitterTitle = document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]');
+  if (demoMode) {
+    document.title = 'Demo — Photo Metadata Inbox';
+    canonical?.setAttribute('href', 'https://photo-metadata-inbox.sociobot.in/demo');
+    ogTitle?.setAttribute('content', 'Demo — Photo Metadata Inbox');
+    ogUrl?.setAttribute('content', 'https://photo-metadata-inbox.sociobot.in/demo');
+    twitterTitle?.setAttribute('content', 'Demo — Photo Metadata Inbox');
+  } else if (!knownRoute) {
+    document.title = 'Page not found — Photo Metadata Inbox';
+    canonical?.setAttribute('href', `https://photo-metadata-inbox.sociobot.in${location.pathname}`);
+    ogTitle?.setAttribute('content', 'Page not found — Photo Metadata Inbox');
+    ogUrl?.setAttribute('content', `https://photo-metadata-inbox.sociobot.in${location.pathname}`);
+    twitterTitle?.setAttribute('content', 'Page not found — Photo Metadata Inbox');
+  }
+}
+
 document.addEventListener('submit', (event) => {
   const form = event.target as HTMLFormElement;
   if (form.id === 'vocabulary-form') {
@@ -494,6 +597,7 @@ document.addEventListener('submit', (event) => {
   }
   if (form.id === 'license-form') {
     event.preventDefault(); const input = form.querySelector<HTMLInputElement>('#license-token'); const error = form.querySelector<HTMLElement>('#license-error');
+    if (demoMode) { if (error) error.textContent = 'The demo already includes the full-line tools. Start for real to add a license.'; return; }
     try { saveLicense(input?.value ?? ''); state.licensed = true; if (error) error.textContent = ''; render(); openDialog('license-dialog'); void refreshLicense(); toast('License saved on this device.'); }
     catch (reason) { if (error) error.textContent = reason instanceof Error ? reason.message : 'Could not save license.'; }
   }

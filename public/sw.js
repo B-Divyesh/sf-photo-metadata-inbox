@@ -1,8 +1,10 @@
-const VERSION = 'photo-metadata-inbox-v4';
+const VERSION = 'photo-metadata-inbox-__BUILD_ID__';
+const BUILT_ASSETS = [];
 const SHELL = [
   '/', '/index.html', '/offline.html', '/manifest.webmanifest',
-  '/assets/app.js', '/assets/app.css', '/assets/archive-line.webp',
-  '/assets/archive-line.png', '/assets/icon-192.png', '/assets/icon-512.png'
+  '/assets/archive-line-d52ac22b.webp',
+  '/assets/archive-line-6fd7f02a.png', '/assets/icon-192.png', '/assets/icon-512.png',
+  ...BUILT_ASSETS
 ];
 
 self.addEventListener('install', (event) => {
@@ -13,6 +15,7 @@ self.addEventListener('install', (event) => {
       if (!response.ok) throw new Error(`Could not cache ${path}`);
       await cache.put(path, response);
     }));
+    await self.skipWaiting();
   })());
 });
 
@@ -38,7 +41,7 @@ self.addEventListener('fetch', (event) => {
   }
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
-      const cached = await caches.match('/index.html', { ignoreSearch: true });
+      const cached = await caches.match('/index.html', { ignoreSearch: true, ignoreVary: true });
       try {
         const response = await fetch(request);
         const body = await response.clone().text();
@@ -51,7 +54,7 @@ self.addEventListener('fetch', (event) => {
     })());
     return;
   }
-  event.respondWith(caches.match(request, { ignoreSearch: true }).then((cached) => cached || fetch(request).then((response) => {
+  event.respondWith(caches.match(request, { ignoreSearch: true, ignoreVary: true }).then((cached) => cached || fetch(request).then((response) => {
     if (response.ok) caches.open(VERSION).then((cache) => cache.put(request, response.clone()));
     return response;
   })));

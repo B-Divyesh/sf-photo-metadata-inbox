@@ -53,9 +53,16 @@ export async function assetsFromFiles(files: File[]): Promise<{ assets: PhotoAss
 
 export function assetsFromList(value: string): PhotoAsset[] {
   const lines = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  return lines.map((line) => {
-    const [path = '', caption = '', keywords = ''] = line.split('\t');
-    const filename = path.split('/').at(-1) ?? path;
+  return lines.map((line, index) => {
+    const [sourcePath = '', caption = '', keywords = ''] = line.split('\t');
+    const path = sourcePath.trim().replaceAll('\\', '/');
+    const parts = path.split('/');
+    const unsafe = !path || path.startsWith('/') || /^[a-z]:\//i.test(path) || /^[a-z][a-z\d+.-]*:\/\//i.test(path)
+      || parts.some((part) => !part || part === '.' || part === '..' || [...part].some((character) => character.charCodeAt(0) < 32));
+    const filename = parts.at(-1) ?? '';
+    if (unsafe || !PHOTO_EXTENSIONS.test(filename)) {
+      throw new Error(`Line ${index + 1} is not a safe, supported photo path: “${sourcePath || '(blank)'}”.`);
+    }
     return makeAsset(filename, path, 'list', caption, unique(keywords.split(/[;,]/)));
   });
 }

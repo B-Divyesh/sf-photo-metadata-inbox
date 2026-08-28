@@ -1,6 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  define: {
+    __BUILD_ID__: JSON.stringify('v1.1.0')
+  },
   build: {
     target: 'es2022',
     outDir: 'dist',
@@ -12,9 +15,9 @@ export default defineConfig({
         terms: new URL('./terms/index.html', import.meta.url).pathname
       },
       output: {
-        entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/[name][extname]'
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]'
       }
     }
   },

@@ -11,6 +11,13 @@ describe('catalog workflow', () => {
     expect(asset?.keywords).toEqual(['wedding', 'dance']);
   });
 
+  it('rejects non-photo and parent-traversal manifest entries', () => {
+    expect(() => assetsFromList('../notes.txt')).toThrow(/safe, supported photo path/);
+    expect(() => assetsFromList('../private/IMG_0001.CR3')).toThrow(/safe, supported photo path/);
+    expect(() => assetsFromList('/absolute/IMG_0002.NEF')).toThrow(/safe, supported photo path/);
+    expect(assetsFromList('safe/event/IMG_0003.ARW')).toHaveLength(1);
+  });
+
   it('exports merged sidecars, originals, CSV history, and restorable JSON', () => {
     const [asset] = assetsFromList('Trip/IMG_002.NEF\tBlue hour\ttravel, city');
     if (!asset) throw new Error('fixture missing');
