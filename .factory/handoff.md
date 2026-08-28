@@ -1,3 +1,30 @@
+# Photo Metadata Inbox — verification handoff: FAIL
+
+**Independent verifier result (2026-08-28): FAIL — do not release candidate
+`a37ccfe7c5c0d5dc47b114e0fb227e442c782d6a`.** The live URL
+<https://photo-metadata-inbox.sociobot.in/> matches the rebuilt candidate, so
+this is not a deployment-only failure. The detailed evidence is in
+[`.factory/verification.md`](verification.md).
+
+Release blockers:
+
+1. ZIP export silently drops one of two distinct assets that share an event
+   folder and filename. This violates the sidecar/provenance and no-silent-
+   overwrite product contract.
+2. The live Sociobot license verify endpoint returned HTTP 200 for every one
+   of 100 concurrent-burst invalid-token requests and never supplied `429` or
+   `Retry-After`, contrary to the required endpoint rate-limit check.
+
+Verified commands: `npm ci`, `npm test` (9 passed), `npm run build`, both
+Playwright projects (4 passed + 1 intended cross-project skip each), and
+`npm audit --omit=dev` (0 vulnerabilities). Offline reload, 390px layout,
+keyboard/focus and reduced-motion smoke checks, live axe serious/critical
+scans, console/page-error checks, privacy/network behavior, headers, caching,
+bundle sizes, and live build hashes are recorded in the verification report.
+
+The following is the original builder handoff, retained for implementation
+context; it is superseded by the FAIL verdict above.
+
 # Photo Metadata Inbox — build handoff
 
 Date: 2026-08-28
