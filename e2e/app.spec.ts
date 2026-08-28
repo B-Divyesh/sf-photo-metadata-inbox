@@ -15,17 +15,37 @@ test('completes and persists a metadata job', async ({ page }) => {
 });
 
 test('has no serious accessibility violations on welcome and catalog', async ({ page }) => {
+  const consoleErrors: string[] = [];
+  page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
+  page.on('pageerror', (error) => consoleErrors.push(error.message));
   await page.goto('/');
   let results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((issue) => ['serious', 'critical'].includes(issue.impact ?? ''))).toEqual([]);
   await page.getByRole('button', { name: 'Try a 6-photo sample' }).click();
   results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((issue) => ['serious', 'critical'].includes(issue.impact ?? ''))).toEqual([]);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('downloads a portable XMP bundle', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Download is covered once on desktop Chromium.');
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Try a 6-photo sample' }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export XMP' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^metadata-inbox-\d{4}-\d{2}-\d{2}\.zip$/);
 });
 
 test('works after the network goes offline', async ({ page, context }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile', 'Offline install path is covered once on mobile Chromium.');
   await page.goto('/');
+  await page.evaluate(async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+    await Promise.all((await caches.keys()).map((key) => caches.delete(key)));
+  });
+  await page.reload();
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
   await context.setOffline(true);

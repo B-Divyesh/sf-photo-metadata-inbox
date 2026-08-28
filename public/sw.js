@@ -1,4 +1,4 @@
-const VERSION = 'photo-metadata-inbox-v2';
+const VERSION = 'photo-metadata-inbox-v3';
 const SHELL = [
   '/', '/index.html', '/offline.html', '/manifest.webmanifest',
   '/assets/app.js', '/assets/app.css', '/assets/archive-line.webp',

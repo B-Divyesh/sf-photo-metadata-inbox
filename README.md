@@ -21,8 +21,8 @@ Live product: <https://photo-metadata-inbox.sociobot.in>
   and direct folder writing with timestamped backups. Manual editing, safety,
   accessibility, and every export remain free.
 
-Image bytes are never stored or uploaded. Folder processing reads filenames
-and sidecar text only.
+Image bytes are never stored or uploaded. Folder processing reads filenames,
+sidecar text, and at most the first 2 MB of JPEGs to find embedded IPTC.
 
 ## Run locally
 

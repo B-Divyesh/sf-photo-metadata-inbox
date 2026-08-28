@@ -1,5 +1,6 @@
 import type { ChangeEntry, PhotoAsset } from './types';
 import { parseXmp, unique } from './xmp';
+import { parseEmbeddedIptc } from './iptc';
 
 const PHOTO_EXTENSIONS = /\.(jpe?g|png|tiff?|heic|heif|avif|webp|dng|cr2|cr3|nef|arw|orf|raf)$/i;
 
@@ -37,6 +38,12 @@ export async function assetsFromFiles(files: File[]): Promise<{ assets: PhotoAss
         ({ caption, keywords } = parseXmp(originalXmp));
       } catch (error) {
         errors.push(`${sidecar.name}: ${error instanceof Error ? error.message : 'Could not read sidecar.'}`);
+      }
+    } else if (/\.jpe?g$/i.test(file.name)) {
+      try {
+        ({ caption, keywords } = await parseEmbeddedIptc(file));
+      } catch {
+        errors.push(`${file.name}: embedded IPTC could not be read; the filename was still imported.`);
       }
     }
     return makeAsset(file.name, path, 'folder', caption, keywords, originalXmp);

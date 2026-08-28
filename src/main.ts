@@ -198,7 +198,7 @@ function templatesView(): string {
 function importDialog(): string {
   return `<dialog id="import-dialog" class="modal"><form method="dialog" class="modal-shell" id="import-form">
     <div class="modal-top"><div><p class="eyebrow">New arrivals</p><h2>Import a local batch</h2></div><button class="icon-button light" value="cancel" aria-label="Close import dialog">×</button></div>
-    <p class="privacy-note"><span aria-hidden="true">◆</span><span><strong>Files stay on this device.</strong> The app reads names and XMP text only; image bytes are never stored or sent.</span></p>
+    <p class="privacy-note"><span aria-hidden="true">◆</span><span><strong>Files stay on this device.</strong> The app reads names, sidecar XMP, and the opening metadata segment of JPEGs; image bytes are never stored or sent.</span></p>
     <label class="drop-zone" for="folder-files"><span class="folder-mark" aria-hidden="true"></span><strong>Choose photos and sidecars</strong><span>Select a folder or multiple files. Matching .xmp files are read alongside photo names.</span><input id="folder-files" type="file" multiple webkitdirectory /></label>
     <div class="or"><span>or paste a manifest</span></div>
     <label class="field dark-field"><span><strong>One path per line</strong><small>Optional tab-separated caption and comma-separated keywords.</small></span><textarea id="manifest" rows="5" placeholder="2026-08-ceremony/IMG_0001.CR3&#10;2026-08-ceremony/IMG_0002.CR3&#9;First dance&#9;wedding, dance"></textarea></label>
