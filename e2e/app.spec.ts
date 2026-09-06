@@ -184,17 +184,19 @@ test('rejects unsafe and non-photo manifest paths without changing the queue', a
   await expect(page.getByLabel('3 assets in this view')).toBeVisible();
 });
 
-test('has no serious accessibility violations and no invalid ARIA roles', async ({ page }) => {
+test('has no blocking accessibility violations, skipped headings, or invalid ARIA roles', async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('pageerror', (error) => consoleErrors.push(error.message));
   await page.goto('/');
   let results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((issue) => ['serious', 'critical'].includes(issue.impact ?? ''))).toEqual([]);
+  expect(results.violations.map((issue) => issue.id)).not.toContain('heading-order');
   expect(results.violations.map((issue) => issue.id)).not.toContain('aria-allowed-role');
   await page.goto('/demo');
   results = await new AxeBuilder({ page }).analyze();
   expect(results.violations.filter((issue) => ['serious', 'critical'].includes(issue.impact ?? ''))).toEqual([]);
+  expect(results.violations.map((issue) => issue.id)).not.toContain('heading-order');
   expect(results.violations.map((issue) => issue.id)).not.toContain('aria-allowed-role');
   expect(consoleErrors).toEqual([]);
 });

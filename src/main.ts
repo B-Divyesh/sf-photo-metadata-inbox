@@ -227,7 +227,7 @@ function clearedView(): string {
 
 function queueView(assets: PhotoAsset[]): string {
   const filtered = state.settings.showCompleted ? assets : assets.filter((asset) => asset.status !== 'done');
-  return `<section class="queue" aria-labelledby="queue-title"><div class="queue-title"><h3 id="queue-title">Route queue</h3><label class="switch"><input type="checkbox" id="show-completed" ${state.settings.showCompleted ? 'checked' : ''}/><span>Show completed</span></label></div>
+  return `<section class="queue" aria-labelledby="queue-title"><div class="queue-title"><h2 id="queue-title">Route queue</h2><label class="switch"><input type="checkbox" id="show-completed" ${state.settings.showCompleted ? 'checked' : ''}/><span>Show completed</span></label></div>
     <div class="queue-strip" role="listbox" aria-label="Photo queue" tabindex="0">${filtered.map((asset, index) => `<button role="option" aria-selected="${asset.id === state.selectedId}" class="queue-ticket ${asset.id === state.selectedId ? 'selected' : ''} ${asset.status}" data-select="${asset.id}" data-queue-index="${index}"><span class="ticket-no">${String(index + 1).padStart(2, '0')}</span><span><strong>${escapeHtml(asset.filename)}</strong><small>${escapeHtml(asset.event)} · ${asset.keywords.length} keywords</small></span><span class="ticket-status">${asset.status === 'done' ? '✓' : '○'}</span></button>`).join('') || '<p class="queue-empty">No items match this view.</p>'}</div></section>`;
 }
 
