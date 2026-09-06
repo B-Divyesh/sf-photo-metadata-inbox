@@ -8,7 +8,12 @@ test('cold first-read and routes match the product contract', async ({ page }) =
   await expect(page).toHaveTitle('Photo Metadata Inbox — finish captions and keywords');
   await expect(page.getByRole('heading', { level: 1, name: 'Finish captions and keywords in your photo backlog' })).toBeVisible();
   await expect(page.getByText(/photographers with large Lightroom-style libraries/)).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Try it with sample data' })).toBeVisible();
+  const sampleAction = page.getByRole('link', { name: 'Try it with sample data' });
+  await expect(sampleAction).toBeVisible();
+  const actionBox = await sampleAction.boundingBox();
+  const viewport = page.viewportSize();
+  expect(actionBox && viewport && actionBox.y >= 0 && actionBox.y + actionBox.height <= viewport.height).toBe(true);
+  expect(await page.evaluate(() => scrollY)).toBe(0);
   await expect(page.getByRole('heading', { name: 'Move each event to done' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Your catalog stays yours' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'US$12 once' })).toBeVisible();

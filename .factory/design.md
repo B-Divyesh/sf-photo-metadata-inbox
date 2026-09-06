@@ -46,7 +46,9 @@ as color.
 Desktop is a three-part station board: slim route rail, central catalog card,
 and a progress/vocabulary inspector. Mobile drops the persistent inspector and
 makes the event queue a horizontal “platform strip”; editing remains one
-column. The current asset is always visually dominant. Straight rules,
+column. On the mobile landing page, the job, audience, and sample action come
+before the poster artwork so the first step is visible without scrolling. The
+current asset is always visually dominant. Straight rules,
 stepped corners, ticket notches, and repeating fan/sunburst geometry carry the
 deco language.
 
