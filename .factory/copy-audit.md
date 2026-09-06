@@ -1,6 +1,6 @@
 # Landing copy audit
 
-Audited 2026-08-28. Counts treat hyphenated terms as one word. No sentence is
+Audited 2026-09-06. Counts treat hyphenated terms as one word. No sentence is
 over 22 words and no banned marketing term appears.
 
 | Copy | Words |
@@ -23,6 +23,10 @@ over 22 words and no banned marketing term appears.
 | It edits metadata you choose in this browser. | 8 |
 | Add reusable templates, event bulk apply, and direct sidecar writing with timestamped backups. | 13 |
 | Manual editing and exports stay free. | 6 |
+
+Catalog description: “Finish captions and keywords across a private, offline
+photo backlog.” It has 10 words and 69 characters, starts with a verb, and has
+no banned marketing term.
 
 Terminology: `photo` means an imported photo filename; `event` means its
 containing folder; `queue` means the unfinished working list; `catalog` means
